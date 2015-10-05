@@ -20,12 +20,24 @@ type Template interface {
 
 var funcs = map[string]interface{}{
 	"nl": func() string { return "\n" },
-	"json": func(v interface{}) (string, error) {
-		b, err := json.Marshal(v)
+	"json": func(v ...interface{}) (string, error) {
+		if len(v) == 0 {
+			return "null", nil
+		} else if len(v) > 1 {
+			return "", fmt.Errorf("wrong number of args for prettyjson: want 0 or 1, got %d", len(v))
+		}
+
+		b, err := json.Marshal(v[0])
 		return string(b), err
 	},
-	"prettyjson": func(v interface{}) (string, error) {
-		b, err := json.MarshalIndent(v, "", "\t")
+	"prettyjson": func(v ...interface{}) (string, error) {
+		if len(v) == 0 {
+			return "null", nil
+		} else if len(v) > 1 {
+			return "", fmt.Errorf("wrong number of args for prettyjson: want 0 or 1, got %d", len(v))
+		}
+
+		b, err := json.MarshalIndent(v[0], "", "\t")
 		return string(b), err
 	},
 	"unjson": func(d interface{}) (interface{}, error) {
@@ -43,31 +55,9 @@ var funcs = map[string]interface{}{
 			return nil, errors.New("JSON data empty")
 		}
 
-		switch b[0] {
-		case '{':
-			r := map[string]interface{}{}
-			return r, json.Unmarshal(b, &r)
-		case '[':
-			var r []interface{}
-			return r, json.Unmarshal(b, &r)
-		case '"':
-			var r string
-			return r, json.Unmarshal(b, &r)
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '+':
-			var r float64
-			return r, json.Unmarshal(b, &r)
-		case 't', 'f':
-			var r bool
-			return r, json.Unmarshal(b, &r)
-		case 'n':
-			var r interface{}
-			if string(b) != "null" {
-				break
-			}
-			return nil, json.Unmarshal(b, &r)
-		}
-
-		return nil, errors.New("Unable to determine JSON root type")
+		var r interface{}
+		err := json.Unmarshal(b, &r)
+		return r, err
 	},
 }
 
